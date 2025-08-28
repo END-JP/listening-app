@@ -1,0 +1,42 @@
+{
+"lessons": [
+{
+"id": "day1",
+"day": 1,
+"keyword": "My treat",
+"audio": "./audio/day1.mp3",
+"segments": [
+{ "t_start": 0.0, "t_end": 2.0, "speaker": "A", "text": "Hey, do you guys want to go to Starbucks?" },
+{ "t_start": 2.0, "t_end": 3.0, "speaker": "A", "text": "My treat." },
+{ "t_start": 3.0, "t_end": 4.2, "speaker": "B", "text": "I'm down." }
+],
+"clozes_original": [
+{
+"text_with_blanks": "Hey, do you guys want to go to ____?",
+"answers": ["Starbucks"]
+},
+{
+"text_with_blanks": "___ treat.",
+"answers": ["My"]
+}
+]
+},
+{
+"id": "day2",
+"day": 2,
+"keyword": "Turns out",
+"audio": "./audio/day2.mp3",
+"segments": [
+{ "t_start": 0.0, "t_end": 0.8, "speaker": "A", "text": "What's up?" },
+{ "t_start": 0.8, "t_end": 4.2, "speaker": "B", "text": "Do you remember how I had to work yesterday?" },
+{ "t_start": 4.2, "t_end": 7.8, "speaker": "B", "text": "Turns out I wasn't even scheduled." }
+],
+"clozes_original": [
+{
+"text_with_blanks": "_____ out I wasn't even scheduled.",
+"answers": ["Turns"]
+}
+]
+}
+]
+}
