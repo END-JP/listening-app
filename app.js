@@ -22,7 +22,7 @@ async function init() {
     LESSONS.forEach((l) => {
       const div = document.createElement('div');
       div.className = 'lesson';
-      div.innerHTML = `<strong>Day ${l.day}</strong><span>${l.keyword}</span>`;
+      div.innerHTML = `<strong>Day ${l.day}</strong><span>${escapeHTML(' — ' + l.keyword)}</span>`;
       div.addEventListener('click', () => selectLesson(l.id, div));
       list.appendChild(div);
     });
@@ -39,6 +39,7 @@ async function init() {
       if (!currentLesson || !currentLesson.transcript_file) return;
       await renderTranscript(currentLesson.transcript_file);
       show('#transcript');
+      window.scrollTo({ top: $('#transcript').offsetTop - 10, behavior: 'smooth' });
     });
     $('#btn-hide-script').addEventListener('click', () => {
       hide('#transcript');
@@ -48,9 +49,43 @@ async function init() {
     // Cloze / TTS flow
     $('#to-cloze-original').addEventListener('click', () => {
       if (!currentLesson) return;
-      buildCloze('#cloze-original-container', currentLesson.clozes_original || []);
       hide('#player'); hide('#transcript'); show('#cloze-original');
     });
+
+    // --- LLMでクローズ自動生成 ---
+    const btnAI = document.getElementById('btn-autocloze-ai');
+    if (btnAI) {
+      btnAI.addEventListener('click', async () => {
+        if (!currentLesson || !currentLesson.transcript_file) return;
+        const lines = await loadTranscriptText(currentLesson.transcript_file);
+        const text = lines.join('\n');
+        btnAI.disabled = true; btnAI.textContent = '生成中…';
+        try {
+          const res = await fetch('/api/generate-cloze', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              text,
+              keyword: currentLesson.keyword || '',
+              num: 4,
+              locale: 'en',
+              level: 'B1'
+            })
+          });
+          const data = await res.json();
+          const clozes = (data.items || []).map(it => ({
+            text_with_blanks: it.text_with_blanks,
+            answers: Array.isArray(it.answers) ? it.answers : [String(it.answers || '')]
+          }));
+          buildCloze('#cloze-original-container', clozes);
+        } catch (e) {
+          alert('生成に失敗しました。時間をおいて再実行してください。');
+          console.error(e);
+        } finally {
+          btnAI.disabled = false; btnAI.textContent = 'AIで自動生成（LLM）';
+        }
+      });
+    }
 
     $('#to-tts').addEventListener('click', () => {
       if (!currentLesson) return;
@@ -91,43 +126,52 @@ function selectLesson(id, el) {
 
   show('#player'); hide('#cloze-original'); hide('#tts'); hide('#cloze-generated'); hide('#transcript');
   $('#transcript-container').innerHTML = '';
+  window.scrollTo({ top: $('#player').offsetTop - 10, behavior: 'smooth' });
 }
 
-// --- Transcript (from .txt only) ---
+// --- Transcript: file → lines ---
+async function loadTranscriptText(file) {
+  const res = await fetch(file, { cache: 'no-store' });
+  const txt = await res.text();
+  return txt.split(/\r?\n/).map(line => {
+    let s = line.trim();
+    if (!s) return '';
+    s = s.replace(/^\[(\d{1,2}:)?\d{1,2}:\d{2}\]\s*/, ''); // [mm:ss] or [hh:mm:ss]
+    s = s.replace(/^[A-Za-z]+:\s*/, '');                   // Speaker label (A:)
+    return s;
+  }).filter(Boolean);
+}
+
+// --- Transcript rendering (for viewing) ---
 async function renderTranscript(file) {
   const container = $('#transcript-container');
   container.innerHTML = '';
   const audio = $('#audio');
+  const txt = await (await fetch(file, { cache: 'no-store' })).text();
 
-  try {
-    const res = await fetch(file, { cache: 'no-store' });
-    const txt = await res.text();
+  txt.split(/\r?\n/).forEach(raw => {
+    const line = raw.trim();
+    if (!line) return;
+    const div = document.createElement('div');
+    div.className = 'tr-line';
 
-    txt.split(/\r?\n/).forEach(line => {
-      if (!line.trim()) return;
-
-      const div = document.createElement('div');
-      div.className = 'tr-line';
-
-      // [mm:ss] optional timestamp
-      const tsMatch = line.match(/^\[(\d{1,2}):(\d{2})\]\s*(.*)$/);
-      if (tsMatch) {
-        const m = parseInt(tsMatch[1],10), s = parseInt(tsMatch[2],10);
-        const t = m*60+s;
-        const btn = document.createElement('button');
-        btn.className = 'ts';
-        btn.textContent = `[${tsMatch[1]}:${tsMatch[2]}]`;
-        btn.addEventListener('click', () => { audio.currentTime=t; audio.play(); });
-        div.appendChild(btn);
-        line = tsMatch[3];
-      }
-
+    const m = line.match(/^\[(\d{1,2}):(\d{2})(?::(\d{2}))?\]\s*(.*)$/);
+    if (m) {
+      const h = m[3] ? parseInt(m[1],10) : 0;
+      const mm = m[3] ? parseInt(m[2],10) : parseInt(m[1],10);
+      const ss = m[3] ? parseInt(m[3],10) : parseInt(m[2],10);
+      const t = h*3600 + mm*60 + ss;
+      const btn = document.createElement('button');
+      btn.className = 'ts';
+      btn.textContent = `[${String(mm).padStart(2,'0')}:${String(ss).padStart(2,'0')}]`;
+      btn.addEventListener('click', () => { audio.currentTime = t; audio.play().catch(()=>{}); });
+      div.appendChild(btn);
+      div.appendChild(document.createTextNode(' ' + (m[4] || '')));
+    } else {
       div.appendChild(document.createTextNode(line));
-      container.appendChild(div);
-    });
-  } catch (e) {
-    console.error('Transcript load failed:', e);
-  }
+    }
+    container.appendChild(div);
+  });
 }
 
 // --- Cloze builder ---
@@ -139,7 +183,7 @@ function buildCloze(containerSel, clozes) {
     div.className = 'cloze';
     const inputId = `cloze-${containerSel}-${idx}`.replace(/[^a-z0-9-]/gi,'');
     div.innerHTML = `
-      <div>${c.text_with_blanks}</div>
+      <div>${escapeHTML(c.text_with_blanks || '')}</div>
       <input id="${inputId}" placeholder="入力..." />
       <button data-idx="${idx}">判定</button>
       <span class="feedback" id="fb-${inputId}"></span>
@@ -150,13 +194,18 @@ function buildCloze(containerSel, clozes) {
       const val = (document.getElementById(inputId).value || '').trim().toLowerCase();
       const ok = (c.answers || []).some(a => a.toLowerCase()===val);
       const fb = document.getElementById(`fb-${inputId}`);
-      fb.textContent = ok ? '✔ 正解' : `✖ 正解は ${c.answers[0]}`;
+      fb.textContent = ok ? '✔ 正解' : `✖ 正解は ${c.answers?.[0] ?? ''}`;
       fb.className = `feedback ${ok ? 'ok':'ng'}`;
     });
   });
 }
 
-// --- Generated dialogue ---
+// --- HTML escape ---
+function escapeHTML(s=''){
+  return s.replace(/[&<>"]/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[ch]));
+}
+
+// --- Generated dialogue (placeholder) ---
 function makeGeneratedDialogue(keyword){
   return { lines: [`A: Let's practice ${keyword}`, `B: Sure, ${keyword} is useful.`], keyword };
 }
