@@ -36,3 +36,10 @@ button.primary{background:var(--brand);color:#001428;border-color:#2c93d1}
 .feedback.ng{color:#ff6b6b}
 summary{cursor:pointer}
 pre{white-space:pre-wrap}
+
+/* Transcript */
+#transcript-container{display:flex;flex-direction:column;gap:8px}
+.tr-line{display:flex;gap:8px;align-items:flex-start;padding:6px 8px;border:1px solid #263043;border-radius:10px;background:#0f141b}
+.ts{font-size:12px;border:1px solid #36465f;background:#0d1219;color:#e9eef5;border-radius:8px;padding:2px 6px;cursor:pointer}
+.spk{min-width:28px;opacity:.9}
+.line{flex:1}
