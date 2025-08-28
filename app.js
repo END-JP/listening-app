@@ -12,7 +12,8 @@ let generatedDialogue = null;
 // --- App init ---
 async function init() {
   try {
-    const res = await fetch('./lessons.json', { cache: 'no-store' });
+    const res = await fetch('/lessons.json', { cache: 'no-store' });
+    if (!res.ok) throw new Error(`lessons.json ${res.status} ${res.statusText}`);
     const data = await res.json();
     LESSONS = data.lessons || [];
 
