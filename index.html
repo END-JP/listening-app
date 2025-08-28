@@ -1,23 +1,20 @@
 <!doctype html>
-<html lang="en">
+<html lang="ja">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Listening App (MVP)</title>
-  <link rel="stylesheet" href="./style.css" />
+  <meta charset="utf-8">
+  <title>Listening App</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <header>
-    <h1>Listening App — MVP</h1>
-    <p class="sub">Day一覧 → 原音声 → 穴埋め → 生成音声 → 穴埋め</p>
-  </header>
-
   <main>
+    <!-- 1. TOC -->
     <section id="toc">
-      <h2>1. 目次（Day選択）</h2>
+      <h2>1. 目次 (Day選択)</h2>
       <div id="lesson-list" class="grid"></div>
     </section>
 
+    <!-- 2. Player -->
     <section id="player" class="card hidden">
       <h2>2. 原音声を聴く</h2>
       <p id="lesson-title"></p>
@@ -25,68 +22,19 @@
       <div class="controls">
         <label>Speed
           <select id="speed">
-            <option value="0.75">0.75×</option>
-            <option value="1" selected>1.0×</option>
-            <option value="1.25">1.25×</option>
-            <option value="1.5">1.5×</option>
+            <option value="0.75">0.75x</option>
+            <option value="1" selected>1.0x</option>
+            <option value="1.25">1.25x</option>
+            <option value="1.5">1.5x</option>
           </select>
         </label>
-        <button id="btn-replay">⟲ 10s</button>
+        <button id="btn-replay">⏪ 10s</button>
         <button id="btn-loop">Loop: Off</button>
       </div>
-      <div class="next row">
-        <button id="btn-show-script">スクリプトを表示</button>
-        <button id="to-cloze-original" class="primary">次へ（穴埋めへ）</button>
-      </div>
-    </section>
-
-    <!-- 追加：スクリプト表示カード（テキストはここに描画） -->
-    <section id="transcript" class="card hidden">
-      <h2>スクリプト</h2>
-      <div id="transcript-container"></div>
       <div class="next">
-        <button id="btn-hide-script">閉じる</button>
+        <button id="to-cloze-original">次へ (穴埋めへ)</button>
       </div>
     </section>
 
-    <section id="cloze-original" class="card hidden">
-      <h2>3. 原スクリプトの穴埋め</h2>
-      <div id="cloze-original-container"></div>
-      <div class="next">
-        <button id="to-tts" class="primary">次へ（生成音声へ）</button>
-      </div>
-    </section>
-
-    <section id="tts" class="card hidden">
-      <h2>4. 新しい会話（音声のみ）</h2>
-      <div class="row">
-        <label>Voice <select id="voice-select"></select></label>
-        <label>Rate <input id="tts-rate" type="range" min="0.7" max="1.3" step="0.05" value="1" /></label>
-      </div>
-      <div class="row">
-        <button id="btn-tts-play" class="primary">▶︎ 再生</button>
-        <button id="btn-tts-stop">■ 停止</button>
-      </div>
-      <p class="note">※ テキストは今は表示しません（リスニング集中）。</p>
-      <div class="next">
-        <button id="to-cloze-generated" class="primary">次へ（生成スクリプトの穴埋めへ）</button>
-      </div>
-    </section>
-
-    <section id="cloze-generated" class="card hidden">
-      <h2>5. 生成スクリプトの穴埋め</h2>
-      <div id="cloze-generated-container"></div>
-      <details class="reveal">
-        <summary>答え合わせ（全文を開く）</summary>
-        <pre id="generated-reveal"></pre>
-      </details>
-    </section>
-  </main>
-
-  <footer>
-    <p>© Your Listening App</p>
-  </footer>
-
-  <script src="./app.js"></script>
-</body>
-</html>
+    <!-- 3. Cloze (original transcript) -->
+    <section id="cloze-or
