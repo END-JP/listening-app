@@ -7,7 +7,7 @@ const pad = (n) => String(n).padStart(2, '0');
 
 let LESSONS = [];
 let currentLesson = null;
-let generatedDialogue = null; // {lines: string[], keyword}
+let generatedDialogue = null;
 
 // --- App init ---
 async function init() {
@@ -22,7 +22,7 @@ async function init() {
     LESSONS.forEach((l) => {
       const div = document.createElement('div');
       div.className = 'lesson';
-      div.innerHTML = `<strong>Day ${l.day}</strong><span>${escapeHTML(' — ' + l.keyword)}</span>`;
+      div.innerHTML = `<strong>Day ${l.day}</strong><span>${l.keyword}</span>`;
       div.addEventListener('click', () => selectLesson(l.id, div));
       list.appendChild(div);
     });
@@ -34,13 +34,11 @@ async function init() {
     let looping = false;
     $('#btn-loop').addEventListener('click', (e) => { looping = !looping; audio.loop = looping; e.target.textContent = `Loop: ${looping ? 'On':'Off'}`; });
 
-    // NEW: transcript buttons
-    $('#btn-show-script').addEventListener('click', () => {
-      if (!currentLesson) return;
-      renderTranscript(currentLesson);
+    // Transcript buttons
+    $('#btn-show-script').addEventListener('click', async () => {
+      if (!currentLesson || !currentLesson.transcript_file) return;
+      await renderTranscript(currentLesson.transcript_file);
       show('#transcript');
-      // スクロールして見やすく
-      window.scrollTo({ top: $('#transcript').offsetTop - 10, behavior: 'smooth' });
     });
     $('#btn-hide-script').addEventListener('click', () => {
       hide('#transcript');
@@ -83,11 +81,9 @@ function selectLesson(id, el) {
   currentLesson = LESSONS.find((l) => l.id === id);
   if (!currentLesson) return;
 
-  // highlight
   $$('.lesson').forEach(x => x.classList.remove('selected'));
   if (el) el.classList.add('selected');
 
-  // player
   $('#lesson-title').textContent = `Day ${currentLesson.day} — ${currentLesson.keyword}`;
   const audio = $('#audio');
   audio.src = currentLesson.audio;
@@ -95,49 +91,43 @@ function selectLesson(id, el) {
 
   show('#player'); hide('#cloze-original'); hide('#tts'); hide('#cloze-generated'); hide('#transcript');
   $('#transcript-container').innerHTML = '';
-  window.scrollTo({ top: $('#player').offsetTop - 10, behavior: 'smooth' });
 }
 
-// --- Transcript rendering ---
-function renderTranscript(lesson) {
+// --- Transcript (from .txt only) ---
+async function renderTranscript(file) {
   const container = $('#transcript-container');
   container.innerHTML = '';
   const audio = $('#audio');
 
-  (lesson.segments || []).forEach((seg, idx) => {
-    const line = document.createElement('div');
-    line.className = 'tr-line';
+  try {
+    const res = await fetch(file, { cache: 'no-store' });
+    const txt = await res.text();
 
-    const t = Math.max(0, Number(seg.t_start || 0));
-    const mm = Math.floor(t / 60), ss = Math.floor(t % 60);
-    const btn = document.createElement('button');
-    btn.className = 'ts';
-    btn.dataset.t = String(t);
-    btn.textContent = `[${pad(mm)}:${pad(ss)}]`;
+    txt.split(/\r?\n/).forEach(line => {
+      if (!line.trim()) return;
 
-    const spk = document.createElement('span');
-    spk.className = 'spk';
-    spk.textContent = (seg.speaker || '').toString().trim() ? `${seg.speaker}:` : '';
+      const div = document.createElement('div');
+      div.className = 'tr-line';
 
-    const text = document.createElement('span');
-    text.className = 'line';
-    text.textContent = seg.text || '';
+      // [mm:ss] optional timestamp
+      const tsMatch = line.match(/^\[(\d{1,2}):(\d{2})\]\s*(.*)$/);
+      if (tsMatch) {
+        const m = parseInt(tsMatch[1],10), s = parseInt(tsMatch[2],10);
+        const t = m*60+s;
+        const btn = document.createElement('button');
+        btn.className = 'ts';
+        btn.textContent = `[${tsMatch[1]}:${tsMatch[2]}]`;
+        btn.addEventListener('click', () => { audio.currentTime=t; audio.play(); });
+        div.appendChild(btn);
+        line = tsMatch[3];
+      }
 
-    line.appendChild(btn);
-    line.appendChild(spk);
-    line.appendChild(text);
-    container.appendChild(line);
-  });
-
-  // seek handler（委譲）
-  container.addEventListener('click', (e) => {
-    const target = e.target;
-    if (target && target.classList.contains('ts')) {
-      const t = parseFloat(target.dataset.t || '0');
-      audio.currentTime = isFinite(t) ? t : 0;
-      audio.play().catch(()=>{});
-    }
-  }, { once: true });
+      div.appendChild(document.createTextNode(line));
+      container.appendChild(div);
+    });
+  } catch (e) {
+    console.error('Transcript load failed:', e);
+  }
 }
 
 // --- Cloze builder ---
@@ -149,7 +139,7 @@ function buildCloze(containerSel, clozes) {
     div.className = 'cloze';
     const inputId = `cloze-${containerSel}-${idx}`.replace(/[^a-z0-9-]/gi,'');
     div.innerHTML = `
-      <div>${escapeHTML(c.text_with_blanks || '')}</div>
+      <div>${c.text_with_blanks}</div>
       <input id="${inputId}" placeholder="入力..." />
       <button data-idx="${idx}">判定</button>
       <span class="feedback" id="fb-${inputId}"></span>
@@ -157,71 +147,29 @@ function buildCloze(containerSel, clozes) {
     container.appendChild(div);
 
     div.querySelector('button').addEventListener('click', () => {
-      const val = (document.getElementById(inputId).value || '').trim();
-      const ok = judgeAnswer(val, c.answers || []);
+      const val = (document.getElementById(inputId).value || '').trim().toLowerCase();
+      const ok = (c.answers || []).some(a => a.toLowerCase()===val);
       const fb = document.getElementById(`fb-${inputId}`);
-      fb.textContent = ok ? '✔ 正解' : `✖ ヒント: ${hintFor((c.answers || [])[0])}`;
+      fb.textContent = ok ? '✔ 正解' : `✖ 正解は ${c.answers[0]}`;
       fb.className = `feedback ${ok ? 'ok':'ng'}`;
     });
   });
 }
 
-function judgeAnswer(value, answers){
-  const v = normalize(value);
-  return (answers || []).some(a => distance(v, normalize(a)) <= 1);
-}
-function hintFor(answer){ if(!answer) return ''; return `${answer[0]}... (${answer.length}文字)`; }
-function normalize(s){ return (s||'').toLowerCase().replace(/[^a-z0-9']/g,' ').replace(/\s+/g,' ').trim(); }
-
-// Damerau–Levenshtein（簡易）
-function distance(a,b){
-  const dp = Array(a.length+1).fill().map(()=>Array(b.length+1).fill(0));
-  for(let i=0;i<=a.length;i++) dp[i][0]=i;
-  for(let j=0;j<=b.length;j++) dp[0][j]=j;
-  for(let i=1;i<=a.length;i++){
-    for(let j=1;j<=b.length;j++){
-      const cost = a[i-1]===b[j-1]?0:1;
-      dp[i][j] = Math.min(dp[i-1][j]+1, dp[i][j-1]+1, dp[i-1][j-1]+cost);
-      if(i>1 && j>1 && a[i-1]===b[j-2] && a[i-2]===b[j-1]) dp[i][j] = Math.min(dp[i][j], dp[i-2][j-2]+1);
-    }
-  }
-  return dp[a.length][b.length];
-}
-
-// HTMLエスケープ
-function escapeHTML(s=''){
-  return s.replace(/[&<>"]/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[ch]));
-}
-
-// --- 生成会話（テキストは隠す） ---
+// --- Generated dialogue ---
 function makeGeneratedDialogue(keyword){
-  const tpl = [
-    `A: Hey, got a minute?`,
-    `B: Sure.`,
-    `A: ${keyword} came up earlier, can we talk?`,
-    `B: ${keyword}? Go ahead.`,
-    `A: I think it fits our plan.`,
-    `B: Sounds good.`
-  ];
-  return { lines: tpl, keyword };
+  return { lines: [`A: Let's practice ${keyword}`, `B: Sure, ${keyword} is useful.`], keyword };
 }
 function makeClozesFromGenerated(gen){
-  const out = []; const k = gen.keyword; let used=false;
-  gen.lines.forEach(line=>{
-    if(!used && line.includes(k)){
-      out.push({ text_with_blanks: line.replace(k,'_____'), answers:[k] }); used=true;
-    }
-  });
-  if(!used) out.push({ text_with_blanks: `${k} の綴り: _____`, answers:[k] });
-  return out;
+  return [{ text_with_blanks: gen.lines[0].replace(gen.keyword,'_____'), answers:[gen.keyword]}];
 }
 
-// --- Web Speech API (TTS) ---
+// --- TTS ---
 let voices=[];
 function setupVoices(){
   voices = speechSynthesis.getVoices();
   const sel = $('#voice-select'); sel.innerHTML='';
-  voices.forEach((v,i)=>{ const o=document.createElement('option'); o.value=String(i); o.textContent=`${v.name} (${v.lang})`; sel.appendChild(o); });
+  voices.forEach((v,i)=>{ const o=document.createElement('option'); o.value=i; o.textContent=`${v.name} (${v.lang})`; sel.appendChild(o); });
 }
 window.speechSynthesis.onvoiceschanged = setupVoices;
 
