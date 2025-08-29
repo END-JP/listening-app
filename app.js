@@ -3,7 +3,6 @@ const $ = (sel) => document.querySelector(sel);
 const $$ = (sel) => Array.from(document.querySelectorAll(sel));
 const show = (sel) => $(sel).classList.remove('hidden');
 const hide = (sel) => $(sel).classList.add('hidden');
-const pad = (n) => String(n).padStart(2, '0');
 
 let LESSONS = [];
 let currentLesson = null;
@@ -15,9 +14,7 @@ async function init() {
     const res = await fetch('/lessons.json', { cache: 'no-store' });
     if (!res.ok) throw new Error(`lessons.json ${res.status} ${res.statusText}`);
     const data = await res.json();
-    console.log('LESSONS.json loaded:', data);
     LESSONS = Array.isArray(data.lessons) ? data.lessons : [];
-    console.log('LESSONS array length:', LESSONS.length);
 
     // TOC
     const list = $('#lesson-list');
@@ -29,7 +26,7 @@ async function init() {
     LESSONS.forEach((l) => {
       const div = document.createElement('div');
       div.className = 'lesson';
-      div.innerHTML = `<strong>Day ${l.day}</strong><span>${escapeHTML(' — ' + l.keyword)}</span>`;
+      div.innerHTML = `<strong>Day ${l.day}</strong><span> — ${escapeHTML(l.keyword)}</span>`;
       div.addEventListener('click', () => selectLesson(l.id, div));
       list.appendChild(div);
     });
@@ -41,11 +38,12 @@ async function init() {
     let looping = false;
     $('#btn-loop').addEventListener('click', (e) => { looping = !looping; audio.loop = looping; e.target.textContent = `Loop: ${looping ? 'On':'Off'}`; });
 
-    // Transcript buttons
-    $('#btn-show-script').addEventListener('click', async () => {
+    // ▼ 新ボタン：スクリプト表示（空欄なし）
+    $('#btn-show-script-plain').addEventListener('click', async () => {
       if (!currentLesson || !currentLesson.transcript_file) return;
       await renderTranscript(currentLesson.transcript_file);
-      show('#transcript');
+      show('#transcript');           // スクリプトを開く
+      show('#player');               // プレイヤーは常に可視（念のため）
       window.scrollTo({ top: $('#transcript').offsetTop - 10, behavior: 'smooth' });
     });
     $('#btn-hide-script').addEventListener('click', () => {
@@ -53,12 +51,15 @@ async function init() {
       $('#transcript-container').innerHTML = '';
     });
 
-    // Cloze / TTS flow
-    $('#to-cloze-original').addEventListener('click', () => {
+    // ▼ 新ボタン：スクリプト表示（空欄あり）＝ クローズ問題の画面を開く
+    $('#btn-show-script-cloze').addEventListener('click', () => {
       if (!currentLesson) return;
-      // 画面遷移のみ
       $('#cloze-original-container').innerHTML = '';
-      hide('#player'); hide('#transcript'); show('#cloze-original');
+      show('#cloze-original');       // 空欄ありを表示
+      show('#player');               // ★ プレイヤーは隠さない
+      hide('#transcript');           // （空欄なし）を閉じたい場合は閉じる
+      // ここでは自動生成はしない。必要なら「AIで自動生成（LLM）」を押す
+      window.scrollTo({ top: $('#cloze-original').offsetTop - 10, behavior: 'smooth' });
     });
 
     // --- LLMでクローズ自動生成 ---
@@ -82,10 +83,8 @@ async function init() {
             })
           });
 
-          // ステータス別ハンドリング
           if (!apiRes.ok) {
             const errText = await apiRes.text().catch(()=>'');
-            console.error('API error:', apiRes.status, errText);
             $('#cloze-original-container').innerHTML =
               `<div style="color:#f88">APIエラー (${apiRes.status}): ${escapeHTML(errText.slice(0,300))}</div>`;
             alert('クイズ生成APIでエラーが発生しました。Consoleのエラー詳細をご確認ください。');
@@ -93,8 +92,6 @@ async function init() {
           }
 
           const data = await apiRes.json().catch(e => ({ items: [], _parseError: String(e) }));
-          console.log('API response parsed:', data);
-
           const items = Array.isArray(data.items) ? data.items : [];
           if (items.length === 0) {
             $('#cloze-original-container').innerHTML =
@@ -108,7 +105,6 @@ async function init() {
           }));
           buildCloze('#cloze-original-container', clozes);
         } catch (e) {
-          console.error('Fetch failed:', e);
           $('#cloze-original-container').innerHTML =
             `<div style="color:#f88">通信エラー: ${escapeHTML(String(e))}</div>`;
           alert('生成に失敗しました（通信エラー）。時間をおいて再実行してください。');
@@ -118,6 +114,7 @@ async function init() {
       });
     }
 
+    // 生成音声→生成クローズの流れ（従来どおり）
     $('#to-tts').addEventListener('click', () => {
       if (!currentLesson) return;
       setupVoices();
@@ -154,9 +151,10 @@ function selectLesson(id, el) {
   $('#lesson-title').textContent = `Day ${currentLesson.day} — ${currentLesson.keyword}`;
   const audio = $('#audio');
   audio.src = currentLesson.audio;
-  audio.playbackRate = parseFloat($('#speed').value);
 
-  show('#player'); hide('#cloze-original'); hide('#tts'); hide('#cloze-generated'); hide('#transcript');
+  show('#player');                   // プレイヤーは常に見せる
+  hide('#cloze-original');           // 以前の状態を一旦閉じる（必要に応じて）
+  hide('#tts'); hide('#cloze-generated'); hide('#transcript');
   $('#transcript-container').innerHTML = '';
   window.scrollTo({ top: $('#player').offsetTop - 10, behavior: 'smooth' });
 }
@@ -195,7 +193,9 @@ async function renderTranscript(file) {
       const t = h*3600 + mm*60 + ss;
       const btn = document.createElement('button');
       btn.className = 'ts';
-      btn.textContent = `[${String(mm).padStart(2,'0')}:${String(ss).padStart(2,'0')}]`;
+      const mm2 = String(mm).padStart(2,'0');
+      const ss2 = String(ss).padStart(2,'0');
+      btn.textContent = `[${mm2}:${ss2}]`;
       btn.addEventListener('click', () => { audio.currentTime = t; audio.play().catch(()=>{}); });
       div.appendChild(btn);
       div.appendChild(document.createTextNode(' ' + (m[4] || '')));
