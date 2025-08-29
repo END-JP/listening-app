@@ -42,7 +42,7 @@
       </div>
     </section>
 
-    <!-- スクリプト表示 -->
+    <!-- スクリプト表示（原文） -->
     <section id="transcript" class="card hidden">
       <h2>スクリプト</h2>
       <div id="transcript-container"></div>
@@ -57,7 +57,7 @@
       <div id="cloze-original-container"></div>
     </section>
 
-    <!-- 4. 新しい会話文（TTS再生 + 任意でスクリプト表示） -->
+    <!-- 4. 新しい会話文（TTS再生 + 任意でスクリプト/日本語訳を表示） -->
     <section id="new-dialogue" class="card hidden">
       <h2>4. キーフレーズを用いた新しい会話文</h2>
       <button id="btn-generate-dialogue" class="primary">新しい会話文を生成</button>
@@ -71,6 +71,12 @@
       </div>
 
       <pre id="new-dialogue-text" class="hidden" style="margin-top:8px"></pre>
+
+      <div id="new-dialogue-translate-controls" class="hidden" style="margin-top:8px">
+        <button id="btn-show-translation" class="primary">日本語訳を表示</button>
+      </div>
+
+      <pre id="new-dialogue-translation" class="hidden" style="margin-top:8px; white-space:pre-wrap"></pre>
     </section>
   </main>
 
