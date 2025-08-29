@@ -38,12 +38,13 @@ async function init() {
     let looping = false;
     $('#btn-loop').addEventListener('click', (e) => { looping = !looping; audio.loop = looping; e.target.textContent = `Loop: ${looping ? 'On':'Off'}`; });
 
-    // ▼ 新ボタン：スクリプト表示（空欄なし）
+    // ▼ スクリプト表示（空欄なし）
     $('#btn-show-script-plain').addEventListener('click', async () => {
       if (!currentLesson || !currentLesson.transcript_file) return;
       await renderTranscript(currentLesson.transcript_file);
-      show('#transcript');           // スクリプトを開く
-      show('#player');               // プレイヤーは常に可視（念のため）
+      show('#transcript');      // スクリプト開く
+      show('#player');          // プレイヤーは常に表示
+      hide('#cloze-original');  // 切り替え時に穴埋めは隠す（任意）
       window.scrollTo({ top: $('#transcript').offsetTop - 10, behavior: 'smooth' });
     });
     $('#btn-hide-script').addEventListener('click', () => {
@@ -51,14 +52,13 @@ async function init() {
       $('#transcript-container').innerHTML = '';
     });
 
-    // ▼ 新ボタン：スクリプト表示（空欄あり）＝ クローズ問題の画面を開く
+    // ▼ 穴埋めに挑戦（空欄あり画面を開く）
     $('#btn-show-script-cloze').addEventListener('click', () => {
       if (!currentLesson) return;
       $('#cloze-original-container').innerHTML = '';
-      show('#cloze-original');       // 空欄ありを表示
-      show('#player');               // ★ プレイヤーは隠さない
-      hide('#transcript');           // （空欄なし）を閉じたい場合は閉じる
-      // ここでは自動生成はしない。必要なら「AIで自動生成（LLM）」を押す
+      show('#cloze-original');  // 穴埋め表示
+      show('#player');          // ★ プレイヤーは隠さない（再生可）
+      hide('#transcript');      // スクリプト素の表示は閉じる（任意）
       window.scrollTo({ top: $('#cloze-original').offsetTop - 10, behavior: 'smooth' });
     });
 
@@ -114,7 +114,7 @@ async function init() {
       });
     }
 
-    // 生成音声→生成クローズの流れ（従来どおり）
+    // 生成音声→生成クローズの流れ
     $('#to-tts').addEventListener('click', () => {
       if (!currentLesson) return;
       setupVoices();
@@ -153,7 +153,7 @@ function selectLesson(id, el) {
   audio.src = currentLesson.audio;
 
   show('#player');                   // プレイヤーは常に見せる
-  hide('#cloze-original');           // 以前の状態を一旦閉じる（必要に応じて）
+  hide('#cloze-original');           // 状態リセット（必要に応じて）
   hide('#tts'); hide('#cloze-generated'); hide('#transcript');
   $('#transcript-container').innerHTML = '';
   window.scrollTo({ top: $('#player').offsetTop - 10, behavior: 'smooth' });
