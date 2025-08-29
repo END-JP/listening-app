@@ -56,6 +56,8 @@ async function init() {
     // Cloze / TTS flow
     $('#to-cloze-original').addEventListener('click', () => {
       if (!currentLesson) return;
+      // 画面遷移のみ
+      $('#cloze-original-container').innerHTML = '';
       hide('#player'); hide('#transcript'); show('#cloze-original');
     });
 
@@ -68,7 +70,7 @@ async function init() {
         const text = lines.join('\n');
         btnAI.disabled = true; btnAI.textContent = '生成中…';
         try {
-          const res = await fetch('/api/generate-cloze', {
+          const apiRes = await fetch('/api/generate-cloze', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -79,15 +81,37 @@ async function init() {
               level: 'B1'
             })
           });
-          const data = await res.json();
-          const clozes = (data.items || []).map(it => ({
+
+          // ステータス別ハンドリング
+          if (!apiRes.ok) {
+            const errText = await apiRes.text().catch(()=>'');
+            console.error('API error:', apiRes.status, errText);
+            $('#cloze-original-container').innerHTML =
+              `<div style="color:#f88">APIエラー (${apiRes.status}): ${escapeHTML(errText.slice(0,300))}</div>`;
+            alert('クイズ生成APIでエラーが発生しました。Consoleのエラー詳細をご確認ください。');
+            return;
+          }
+
+          const data = await apiRes.json().catch(e => ({ items: [], _parseError: String(e) }));
+          console.log('API response parsed:', data);
+
+          const items = Array.isArray(data.items) ? data.items : [];
+          if (items.length === 0) {
+            $('#cloze-original-container').innerHTML =
+              '<div style="opacity:.8">問題が生成されませんでした。スクリプト量を増やすか、再度お試しください。</div>';
+            return;
+          }
+
+          const clozes = items.map(it => ({
             text_with_blanks: it.text_with_blanks,
             answers: Array.isArray(it.answers) ? it.answers : [String(it.answers || '')]
           }));
           buildCloze('#cloze-original-container', clozes);
         } catch (e) {
-          alert('生成に失敗しました。時間をおいて再実行してください。');
-          console.error(e);
+          console.error('Fetch failed:', e);
+          $('#cloze-original-container').innerHTML =
+            `<div style="color:#f88">通信エラー: ${escapeHTML(String(e))}</div>`;
+          alert('生成に失敗しました（通信エラー）。時間をおいて再実行してください。');
         } finally {
           btnAI.disabled = false; btnAI.textContent = 'AIで自動生成（LLM）';
         }
@@ -114,7 +138,7 @@ async function init() {
   } catch (err) {
     console.error('Init error:', err);
     const box = document.getElementById('lesson-list');
-    if (box) box.innerHTML = `<div style="color:#f88">初期化エラー: ${String(err.message || err)}</div>`;
+    if (box) box.innerHTML = `<div style="color:#f88">初期化エラー: ${escapeHTML(String(err.message || err))}</div>`;
   }
 }
 window.addEventListener('load', init);
