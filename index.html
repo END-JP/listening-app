@@ -57,11 +57,20 @@
       <div id="cloze-original-container"></div>
     </section>
 
-    <!-- 4. 新しい会話文 -->
+    <!-- 4. 新しい会話文（TTS再生 + 任意でスクリプト表示） -->
     <section id="new-dialogue" class="card hidden">
       <h2>4. キーフレーズを用いた新しい会話文</h2>
       <button id="btn-generate-dialogue" class="primary">新しい会話文を生成</button>
-      <pre id="new-dialogue-text"></pre>
+
+      <div id="new-dialogue-audio-box" class="hidden" style="margin-top:12px">
+        <audio id="new-dialogue-audio" controls preload="none"></audio>
+      </div>
+
+      <div id="new-dialogue-controls" class="hidden" style="margin-top:8px">
+        <button id="btn-show-new-script" class="primary">スクリプトを表示</button>
+      </div>
+
+      <pre id="new-dialogue-text" class="hidden" style="margin-top:8px"></pre>
     </section>
   </main>
 
