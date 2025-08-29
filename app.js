@@ -211,29 +211,48 @@ async function renderTranscript(file) {
   });
 }
 
-// 穴埋めUI生成
+// 穴埋めUI生成（autocomplete無効化）
 function buildCloze(sel, clozes) {
   const container = $(sel);
   container.innerHTML = '';
   (clozes || []).forEach((c, i) => {
     const div = document.createElement('div');
     div.className = 'cloze';
-    const inputId = `cloze-${i}`;
-    div.innerHTML = `
-      <div>${escapeHTML(c.text_with_blanks || '')}</div>
-      <input id="${inputId}" placeholder="入力..." />
-      <button data-idx="${i}">判定</button>
-      <span id="fb-${i}" class="feedback"></span>
-    `;
-    container.appendChild(div);
 
-    div.querySelector('button').addEventListener('click', () => {
-      const val = ($('#' + inputId).value || '').trim().toLowerCase();
+    // 問題文
+    const q = document.createElement('div');
+    q.innerHTML = escapeHTML(c.text_with_blanks || '');
+    div.appendChild(q);
+
+    // 入力欄
+    const inputId = `cloze-${i}`;
+    const input = document.createElement('input');
+    input.id = inputId;
+    input.placeholder = '入力...';
+    input.autocomplete = 'off';
+    input.autocorrect = 'off';
+    input.autocapitalize = 'off';
+    input.spellcheck = false;
+    input.name = `cloze-${Date.now()}-${i}-${Math.random().toString(36).slice(2)}`;
+    div.appendChild(input);
+
+    // 判定ボタン
+    const btn = document.createElement('button');
+    btn.textContent = '判定';
+    const fb = document.createElement('span');
+    fb.id = `fb-${i}`;
+    fb.className = 'feedback';
+
+    btn.addEventListener('click', () => {
+      const val = (input.value || '').trim().toLowerCase();
       const ok = (c.answers || []).some(a => a.toLowerCase() === val);
-      const fb = $('#fb-' + i);
       fb.textContent = ok ? '✔ 正解' : `✖ 正解は ${c.answers?.[0] ?? ''}`;
       fb.className = ok ? 'ok' : 'ng';
     });
+
+    div.appendChild(btn);
+    div.appendChild(fb);
+    container.appendChild(div);
   });
 }
 
