@@ -30,6 +30,34 @@
       "clozes_original": [
         { "text_with_blanks": "No _____. I'm good.", "answers": ["thanks"] }
       ]
+    },
+    {
+      "id": "day4",
+      "day": 4,
+      "keyword": "By the way",
+      "audio": "./audio/day4.mp3",
+      "transcript_file": "./transcripts/day4.txt"
+    },
+    {
+      "id": "day5",
+      "day": 5,
+      "keyword": "Figure out",
+      "audio": "./audio/day5.mp3",
+      "transcript_file": "./transcripts/day5.txt"
+    },
+    {
+      "id": "day6",
+      "day": 6,
+      "keyword": "Let me know",
+      "audio": "./audio/day6.mp3",
+      "transcript_file": "./transcripts/day6.txt"
+    },
+    {
+      "id": "day7",
+      "day": 7,
+      "keyword": "Sounds good",
+      "audio": "./audio/day7.mp3",
+      "transcript_file": "./transcripts/day7.txt"
     }
   ]
 }
