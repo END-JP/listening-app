@@ -15,11 +15,17 @@ async function init() {
     const res = await fetch('/lessons.json', { cache: 'no-store' });
     if (!res.ok) throw new Error(`lessons.json ${res.status} ${res.statusText}`);
     const data = await res.json();
-    LESSONS = data.lessons || [];
+    console.log('LESSONS.json loaded:', data);
+    LESSONS = Array.isArray(data.lessons) ? data.lessons : [];
+    console.log('LESSONS array length:', LESSONS.length);
 
     // TOC
     const list = $('#lesson-list');
     list.innerHTML = '';
+    if (LESSONS.length === 0) {
+      list.innerHTML = '<div style="opacity:.8">lessons.json に lessons が見つかりませんでした。</div>';
+      return;
+    }
     LESSONS.forEach((l) => {
       const div = document.createElement('div');
       div.className = 'lesson';
@@ -107,7 +113,8 @@ async function init() {
     $('#btn-tts-stop').addEventListener('click', () => window.speechSynthesis.cancel());
   } catch (err) {
     console.error('Init error:', err);
-    alert('初期化エラー。強制リロード（⌘+Shift+R / Ctrl+F5）を試してください。');
+    const box = document.getElementById('lesson-list');
+    if (box) box.innerHTML = `<div style="color:#f88">初期化エラー: ${String(err.message || err)}</div>`;
   }
 }
 window.addEventListener('load', init);
